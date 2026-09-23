@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- <t t-inherit="wms_barcode.LineQuantity" t-inherit-mode="extension">
+        <xpath expr="//div[@name='quantity']" position="replace">
+            <div name="quantity">
+                <span class="o_packaging text-muted" t-if="line.packaging_uom_id &amp;&amp; line.packaging_uom_id.id !== line.product_uom_id.id">
+                    Packaging: <span t-esc="line.packaging_uom_qty"/> <span t-esc="line.packaging_uom_id.name"/>
+                </span>
+                <br/>
+                <t t-if="line.uom_bag_id">
+                    <span class="o_barcode_scanner_qty font-monospace fs-1">
+                        <span class="qty-done text-dark" t-esc="computedBagQty"/>
+                    </span>
+                    <small class="text-muted ms-1 fs-6">Bag</small>
+                </t>
+            </div>
+        </xpath>
+    </t> -->
+    <t t-inherit="wms_barcode.LineQuantity" t-inherit-mode="extension">
+        <xpath expr="//span[hasclass('o_packaging')]" position="replace">
+            <span class="o_packaging text-muted" t-if="packagingLabel" t-esc="packagingLabel"/>
+        </xpath>
+        <xpath expr="//span[hasclass('qty-done')]" position="attributes">
+            <attribute name="t-out">hasBagUom ? computedBagQty + ' ' + bagUomLabel : (hasPackUom ? packQtyLabel : (env.model.IsNotSet(line) ? '?' : qtyDone))</attribute>
+        </xpath>
+        <!-- Untuk baris ber-UoM bag, yang menentukan tampil/tidaknya demand adalah
+             `computedBagDemand` itu sendiri, bukan `displayLineQtyDemand()` core.
+             Core menilainya dari `reserved_uom_qty`, yang sengaja 0 untuk line
+             yang dibentuk di client, padahal line hasil scan pallet punya demand
+             yang jelas: isi pallet-nya (lihat `_computeSingleBagDemand()` di
+             line_componant_patch.js). Tanpa ini "/80 BOX" baru muncul setelah
+             operator keluar-masuk dokumen. Jalur non-bag tidak diubah. -->
+        <xpath expr="//span[hasclass('qty-done')]/../span[@t-if]" position="attributes">
+            <attribute name="t-if">!(env.model.isCheckerOnly() or env.model.isCheckerOut()) and !hasPackUom and (hasBagUom ? computedBagDemand : env.model.displayLineQtyDemand(line))</attribute>
+        </xpath>
+        <xpath expr="//span[hasclass('qty-done')]/../span[@t-if]" position="attributes">
+            <attribute name="t-out">!(env.model.isCheckerOnly() or env.model.isCheckerOut()) ? (hasBagUom ? '/' + computedBagDemand + ' ' + bagUomLabel : '/' + qtyDemand) : ''</attribute>
+        </xpath>
+        <xpath expr="//small[hasclass('o_line_uom')]" position="attributes">
+            <attribute name="t-if">props.displayUOM and !hasBagUom and !hasPackUom</attribute>
+        </xpath>
+    </t>
+
+    <t t-inherit="wms_barcode.LineUpperButtons" t-inherit-mode="extension">
+        <xpath expr="//button[hasclass('o_edit')]" position="attributes">
+            <attribute name="t-if">!displayToggleBtn and !env.model.record.hide_edit_barcode</attribute>
+        </xpath>
+    </t>
+
+    <t t-inherit="wms_barcode.LineLot" t-inherit-mode="extension">
+        <xpath expr="//button[hasclass('o_edit')]" position="attributes">
+            <attribute name="t-if">!displayToggleBtn and !env.model.record.hide_edit_barcode</attribute>
+        </xpath>
+    </t>
+
+    <!--NGILANGIN TOMBOL PLUS MINUS QUANTITY-->
+    <!-- <t t-inherit="wms_barcode.LineLowerButtons" t-inherit-mode="extension">
+        <xpath expr="//div[not(@t-if)]" position="replace">
+            <div class="d-none flex-nowrap gap-2">
+                </div>
+        </xpath>
+    </t> -->
+    <t t-inherit="wms_barcode.LineLowerButtons" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('gap-2')]" position="replace">
+            <div t-else="" class="d-flex flex-nowrap gap-2">
+                <button t-if="env.model.isProductionOnly()" name="deleteButton"
+                        t-on-click="() => this.env.model.deleteLine(line)"
+                        t-att-disabled="!this.env.model.lineCanBeEdited(line)"
+                        class="o_line_button o_delete_line btn btn-danger">
+                    <span class="fa fa-lg fa-trash"/>
+                </button>
+            </div>
+        </xpath>
+        <xpath expr="//div[@t-if='displayToggleBtn']" position="attributes">
+            <attribute name="class">d-flex flex-column align-items-end</attribute>
+        </xpath>
+        <xpath expr="//button[hasclass('o_toggle_sublines')]" position="before">
+            <button t-if="showBulkEntryButton"
+                    class="btn btn-sm btn-success o_btn_bulk_entry py-0 px-2 fs-7 mb-1"
+                    t-on-click.stop="() => this.openBulkEntry(line)">
+                <i class="fa fa-lg fa-pencil" role="img"/>
+            </button>
+        </xpath>
+    </t>
+
+    <!-- Saat bypass_entire_packs, baris grup dikelompokkan per product + package
+         (lihat groupKey di barcode_pickimg_model_patch.js), jadi pallet asal pasti
+         seragam untuk seluruh subline. Tampilkan pallet asal → pallet tujuan di
+         header grup, tepat di bawah lokasi tujuan. Markup disamakan dengan blok
+         name="package" milik wms_barcode.LineComponent. -->
+    <t t-inherit="wms_barcode.GroupedLineComponent" t-inherit-mode="extension">
+        <xpath expr="//t[@t-call='wms_barcode.LineDestinationLocation']" position="after">
+            <div name="package"
+                 t-if="env.model.record.picking_type_bypass_entire_packs and (line.package_id or line.result_package_id)">
+                <i class="fa fa-fw fa-archive"/>
+                <span t-if="line.package_id" class="package" t-esc="packageLabel"/>
+                <i t-if="displayResultPackage" class="fa fa-long-arrow-right mx-1"/>
+                <span t-if="line.result_package_id" class="result-package" t-esc="resultPackageLabel"/>
+            </div>
+        </xpath>
+    </t>
+
+    <!--INI YANG TANPA LINE PRODUCT-->
+    <t t-inherit="wms_barcode.PackageLineComponent" t-inherit-mode="extension">
+        <xpath expr="//button[hasclass('o_unpack')]" position="attributes">
+            <attribute name="t-if">false</attribute>
+        </xpath>
+        <xpath expr="//button[hasclass('o_package_content')]" position="attributes">
+            <attribute name="t-if">false</attribute>
+        </xpath>
+        <!-- <xpath expr="//button[hasclass('o_unpack')]" position="before">
+            <t t-if='env.model.record.picking_type_bypass_entire_packs'>
+                <t t-foreach="sublinesToDisplay" t-as="subline" t-key="subline.virtual_id">
+                    <button class="o_line_button o_edit btn btn-secondary"
+                            t-on-click="(ev) => this.editSublineQty(subline, ev)"
+                            t-att-disabled="!this.env.model.lineCanBeEdited(subline)">
+                        <i class="fa fa-pencil" role="img"/>
+                    </button>
+                </t>
+            </t>
+        </xpath> -->
+    </t>
+
+    <!--INI YANG LINE PRODUCT-->
+    <!-- <t t-inherit="wms_barcode.PackageLineComponent" t-inherit-mode="extension">\
+        <xpath expr="//div[hasclass('o_barcode_line_details')]" position="inside">
+            <div class="o_package_content_lines mt-1">
+                <t t-foreach="sublinesToDisplay" t-as="subline" t-key="subline.virtual_id">
+                    <div class="d-flex justify-content-between align-items-center py-1 border-top">
+                        <span t-esc="subline.product_id.display_name"/>
+                        <button class="o_line_button o_edit btn btn-secondary"
+                                t-on-click="(ev) => this.editSublineQty(subline, ev)"
+                                t-att-disabled="!this.env.model.lineCanBeEdited(subline)">
+                            <i class="fa fa-pencil" role="img"/>
+                        </button>
+                    </div>
+                </t>
+            </div>
+        </xpath>
+    </t> -->
+
+    <t t-inherit="wms_barcode.MainComponent" t-inherit-mode="extension">
+        <xpath expr="//PackageLineComponent" position="attributes">
+            <attribute name="editLine.bind">onOpenProductPage</attribute>
+        </xpath>
+        <!--HIDE RETURN PRODUCT-->
+        <!-- <xpath expr="//div[@t-if='displayOperationButtons']//button[hasclass('o_create_return')]" position="attributes">
+            <attribute name="t-if">false</attribute>
+        </xpath> -->
+        <xpath expr="//div[@t-if='displayOperationButtons']" position="attributes">
+            <attribute name="t-if">false</attribute>
+        </xpath>
+        <xpath expr="//footer[hasclass('mt-auto')]" position="attributes">
+            <attribute name="t-if">false</attribute>
+        </xpath>
+    </t>
+
+    <!-- bulk_entry — blok ini dinonaktifkan: tombol Bulk Entry sekarang berada di
+         wms_barcode.LineLowerButtons, tepat di atas tombol dropdown subline.
+         Snippet Duplicate Product dibiarkan di sini supaya tidak hilang. -->
+    <!-- <t t-inherit="wms_barcode.LineDestinationLocation" t-inherit-mode="extension">
+        <xpath expr="//div[@name='destination_location']" position="after">
+            <div name="duplicate_button" class="mt-1">
+                <button class="btn btn-sm btn-outline-secondary o_btn_duplicate_line py-0 px-2 fs-7"
+                        t-on-click.stop="() => this.duplicateProductLine(line)">
+                    <i class="fa fa-copy me-1"/> Duplicate Product
+                </button>
+            </div>
+        </xpath>
+    </t> -->
+</templates>

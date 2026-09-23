@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record model="ir.ui.view" id="inherit_stock_package_form_views">
+        <field name="name">inherit.stock.package.form</field>
+        <field name="model">stock.package</field>
+        <field name="inherit_id" ref="stock.stock_package_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='pack_date']" position="after">
+                <field name="pallet_status" readonly="1"/>
+                <field name="can_be_use" readonly="1"/>
+                <field name="is_reserved" readonly="1"/>
+            </xpath> 
+            <xpath expr="//field[@name='parent_package_id']" position="after">
+            </xpath>
+            <xpath expr="//field[@name='product_uom_id']" position="after">
+                <field name="bag_qty" string="Quantity" readonly="1"/>
+                <field name="uom_bag_id" string="Unit" readonly="1" options="{'no_open': True, 'no_create': True}"/>
+            </xpath>
+            <xpath expr="//field[@name='contained_quant_ids']/kanban/templates/t/field[@name='lot_id']" position="after">
+                <div class="d-flex">
+                    <field name="bag_qty"/>
+                    <field name="uom_bag_id" class="mx-2" groups="uom.group_uom"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <menuitem 
+        id="stock.menu_package" 
+        name="Pallet (Packages)" 
+        parent="stock.menu_stock_inventory_control" 
+        action="stock.action_package_view" 
+        groups="stock.group_tracking_lot" 
+        sequence="102"
+    />
+</odoo>

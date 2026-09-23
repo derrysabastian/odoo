@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="qr_po_sap_line" name="qr_po_sap_line">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.basic_layout">
+                    <!-- Penambahan max-height, overflow: hidden, dan page-break-inside agar terkunci 1 halaman -->
+                    <div class="page" style="margin: 0 auto; padding: 2px; width: 90%; max-height: 98vh; overflow: hidden; page-break-inside: avoid; box-sizing: border-box;">
+                        <center>
+                            <table class="table-borderless" style="width: 90%; margin: 0 auto; padding: 0; border-collapse: collapse; border: none; table-layout: fixed;">
+                                <tr>
+                                    <td style="border: none; padding: 0;">
+                                        <!-- QR Code dipertahankan sesuai gaya aslinya -->
+                                        <img t-if="doc.po_sap_id.po_number and doc.production_line_id.code"
+                                             t-att-src="'data:image/png;base64,%s' % doc._get_qr_image_base64()"
+                                             alt="QR Code" style="width: 90%; max-width: 90%; height: auto; object-fit: contain; margin: 0 auto; display: block;"/>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <!-- font-size diperbesar, ditambahkan letter-spacing (lebar), dan line-height dirapatkan -->
+                                    <td style="font-size: 46px; font-weight: 900; letter-spacing: 2px; line-height: 0.85; padding-top: 4px; border: none; word-wrap: break-word; overflow-wrap: break-word; text-align: center;">
+                                        <t t-esc="doc.po_sap_id.po_number"/>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size: 40px; font-weight: bold; letter-spacing: 2px; line-height: 0.85; padding-top: 2px; border: none; word-wrap: break-word; overflow-wrap: break-word; text-align: center;">
+                                        <t t-esc="doc.po_sap_id.order_type"/>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size: 46px; font-weight: 900; letter-spacing: 2px; line-height: 0.85; padding-top: 2px; border: none; word-wrap: break-word; overflow-wrap: break-word; text-align: center;">
+                                        <t t-esc="doc.production_line_id.name"/>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size: 40px; font-weight: bold; letter-spacing: 2px; line-height: 0.85; padding-top: 2px; border: none; word-wrap: break-word; overflow-wrap: break-word; text-align: center;">
+                                        <t t-esc="doc.po_sap_id.product_id.default_code"/>
+                                    </td>
+                                </tr>
+                            </table>
+                        </center>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <record id="action_report_qr_po_sap_line" model="ir.actions.report">
+        <field name="name">Print QR PO SAP Line</field>
+        <field name="model">qr.po.sap</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">wms_production_order_sap.qr_po_sap_line</field>
+        <field name="report_file">wms_production_order_sap.qr_po_sap_line</field>
+        <field name="print_report_name">'QR-Label-%s-%s' % (object.po_sap_id.po_number, object.production_line_id.code)</field>
+    </record>
+</odoo>

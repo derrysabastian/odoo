@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="wms_barcode.MainMenu">
+        <div class="o_home_menu_background h-100 w-100 pt-sm-3">
+            <div class="o_wms_barcode_main_menu container d-flex flex-column h-100 h-sm-auto bg-view shadow">
+                <header class="o_wms_barcode_menu_header">
+                    <div class="d-flex align-items-center justify-content-between py-3">
+                        <a t-if="!pwaService.isScopedApp" href="#" class="o_wms_barcode_home_menu oi oi-apps me-3 text-dark"
+                            t-on-click="() => this.home.toggle(true)"/>
+                        <div class="me-auto">
+                            <div class="o_wms_barcode_brand">WMS Barcode</div>
+                            <div class="o_wms_barcode_subtitle">Warehouse operations</div>
+                        </div>
+                        <button t-if="pwaService.isScopedApp" class="btn btn-secondary" t-on-click="logout">Log out</button>
+                        <a t-elif="pwaService.isSupportedOnBrowser" class="btn btn-secondary d-flex align-items-center justify-content-center" href="/scoped_app?app_id=wms_barcode&amp;path=scoped_app/barcode" target="_blank">Install</a>
+                    </div>
+                </header>
+                <main class="o_wms_barcode_menu_body flex-grow-1">
+                    <div t-if="state.displayDemoMessage" class="o_barcode_demo_message alert alert-info alert-dismissible" role="status">
+                        <p class="m-0">
+                            <t t-out="demoMessage"/>
+                        </p>
+                        <button t-on-click="removeDemoMessage" type="button" class="btn-close" title="Close"/>
+                    </div>
+                    <div class="o_wms_barcode_scan_card text-center" t-on-click="openManualBarcodeDialog">
+                        <div class="o_wms_barcode_scan_kicker">Warehouse scanner</div>
+                        <div class="o_wms_barcode_scan_icon o_stock_mobile_barcode m-auto cursor-pointer">
+                            <img src="/wms_barcode/static/img/barcode.png" alt="Barcode" class="my-1"/>
+                            <div class="o_wms_barcode_laser"/>
+                        </div>
+                        <div class="o_wms_barcode_scan_title">Ready to scan</div>
+                        <div class="o_wms_barcode_scan_hint">Scan a product, package, lot, or operation</div>
+                        <div class="o_wms_barcode_scan_action text-primary fw-bold">
+                            <i class="fa fa-camera me-2"/>Scan or tap to start
+                        </div>
+                    </div>
+                    <ul class="o_wms_barcode_help list-unstyled">
+                        <t t-foreach="barcodeHomeHelper" t-as="help_line" t-key="help_line_index">
+                            <li><i class="fa fa-check-circle me-2"/><span><t t-out="help_line"/></span></li>
+                        </t>
+                    </ul>
+                </main>
+                <footer class="o_wms_barcode_menu_actions">
+                    <button class="o_button_operations o_wms_barcode_action_card btn btn-primary w-100"
+                            t-on-click="() => this.actionService.doAction('wms_barcode.stock_picking_type_action_kanban')">
+                        <i class="fa fa-exchange me-3"/>
+                        <span class="text-start"><strong>Operations</strong><small>Receipts, deliveries, and transfers</small></span>
+                        <i class="fa fa-angle-right ms-auto"/>
+                    </button>
+                    <button t-attf-class="o_button_inventory o_wms_barcode_action_card btn btn-{{this.quantCount ? 'info' : 'secondary'}} w-100"
+                            t-on-click="() => this.actionService.doAction('wms_barcode.wms_barcode_inventory_client_action')">
+                        <i class="fa fa-cubes me-3"/>
+                        <span class="text-start"><strong>Count Inventory</strong><small>Check stock by product or location</small></span>
+                        <span t-if="this.quantCount" class="o_wms_barcode_count_badge ms-auto" t-out="this.quantCount"/>
+                        <i t-else="" class="fa fa-angle-right ms-auto"/>
+                    </button>
+                </footer>
+            </div>
+        </div>
+    </t>
+</templates>

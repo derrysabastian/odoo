@@ -1,0 +1,385 @@
+/** @odoo-module **/
+
+import { patch } from "@web/core/utils/patch";
+import { _t } from "@web/core/l10n/translation";
+import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+import LineComponent from '@wms_barcode/components/line';
+// bulk_entry
+import { BulkEntryDialog } from "./bulk_entry_dialog";
+
+patch(LineComponent.prototype, {
+
+    get packagingLabel() {
+        const line = this.props.line || this.line;
+        const packagingUom = line?.packaging_uom_id;
+        const packagingUomId = this._getRelationId(packagingUom);
+        const productUomId = this._getRelationId(line?.product_uom_id);
+        if (!packagingUomId || packagingUomId === productUomId) {
+            return "";
+        }
+        const kind = line?.order_selection === "gratis" ? _t("Product Gratis") : _t("Order Qty");
+        const uomName = (packagingUom && typeof packagingUom === "object") ? packagingUom.name : "";
+        return `${kind}: ${line.packaging_uom_qty} ${uomName}`;
+    },
+
+    get computedBagQty() {
+        const line = this.props.line || this.line;
+        if (Array.isArray(line?.lines) && line.lines.length) {
+            const total = line.lines.reduce(
+                (sum, subline) => sum + this._computeSingleBagQty(subline),
+                0
+            );
+            console.log("[WMS-SCANNER][bagQty] computedBagQty:group", {
+                autofill_pack_qty: this.env.model.record?.autofill_pack_qty,
+                sublines: line.lines.map((l) => ({
+                    id: l.id,
+                    virtual_id: l.virtual_id,
+                    bag_qty: l.bag_qty,
+                    quantity: l.quantity,
+                    qty_done: l.qty_done,
+                    reserved_uom_qty: l.reserved_uom_qty,
+                    single: this._computeSingleBagQty(l),
+                })),
+                total,
+            });
+            return Math.round(total * 100) / 100;
+        }
+
+        return Math.round(this._computeSingleBagQty(line) * 100) / 100;
+    },
+
+    get bagUomLabel() {
+        const line = this.props.line || this.line;
+        const sourceLine =
+            Array.isArray(line?.lines) && line.lines.length ? line.lines[0] : line;
+        const bagUomId = this._getRelationId(sourceLine?.uom_bag_id);
+        if (!bagUomId) {
+            return "";
+        }
+        const targetUom = this.env.model.cache.getRecord("uom.uom", bagUomId);
+        return targetUom?.sap_name || "";
+    },
+
+    _getRelationId(value) {
+        if (value && typeof value === "object") {
+            return value.id;
+        }
+        return value || false;
+    },
+
+    _computeSingleBagQty(line) {
+        const bagUomId = this._getRelationId(line?.uom_bag_id);
+        const productUomId = this._getRelationId(line?.product_uom_id);
+        if (!bagUomId || !productUomId) {
+            return 0;
+        }
+        if (!this.env.model.record.autofill_pack_qty) {
+            return line.bag_qty || 0;
+        }
+        const sourceUom = this.env.model.cache.getRecord("uom.uom", productUomId);
+        const targetUom = this.env.model.cache.getRecord("uom.uom", bagUomId);
+        if (!sourceUom?.factor || !targetUom?.factor) {
+            return 0;
+        }
+        const qty = line.quantity ?? line.qty_done ?? 0;
+        return (qty * sourceUom.factor) / targetUom.factor;
+    },
+
+    /** Konversi qty produk (dalam UoM produk) menjadi jumlah bag untuk `line`. */
+    _computeBagFromQty(line, qty) {
+        const bagUomId = this._getRelationId(line?.uom_bag_id);
+        const productUomId = this._getRelationId(line?.product_uom_id);
+        if (!bagUomId || !productUomId || !qty) {
+            return 0;
+        }
+        const sourceUom = this.env.model.cache.getRecord("uom.uom", productUomId);
+        const targetUom = this.env.model.cache.getRecord("uom.uom", bagUomId);
+        if (!sourceUom?.factor || !targetUom?.factor) {
+            return 0;
+        }
+        return (qty * sourceUom.factor) / targetUom.factor;
+    },
+
+    /**
+     * Demand satu line dalam satuan bag.
+     *
+     * Reservasi asli selalu menang. Kalau line-nya tidak punya reservasi tapi
+     * lahir dari scan pallet -- kasus Split QTY Pallet (P2P), yang picking-nya
+     * dibuat kosong sehingga SELURUH line dibentuk di client dan
+     * `reserved_uom_qty`-nya sengaja dinolkan core -- demand-nya diambil dari
+     * isi pallet. Tanpa cabang kedua ini, demand baru muncul setelah operator
+     * keluar-masuk dokumen; lihat `getScannedPackageQty()` di
+     * barcode_pickimg_model_patch.js.
+     */
+    _computeSingleBagDemand(line) {
+        const reserved = line?.reserved_uom_qty ?? 0;
+        if (reserved) {
+            return this._computeBagFromQty(line, reserved);
+        }
+        return this._computeBagFromQty(line, this.env.model.getScannedPackageQty(line));
+    },
+
+    get computedBagDemand() {
+        const line = this.props.line || this.line;
+        if (Array.isArray(line?.lines) && line.lines.length) {
+            const total = line.lines.reduce(
+                (sum, subline) => sum + this._computeSingleBagDemand(subline),
+                0
+            );
+            return Math.round(total * 100) / 100;
+        }
+        return Math.round(this._computeSingleBagDemand(line) * 100) / 100;
+    },
+
+    get hasBagUom() {
+        const line = this.props.line || this.line;
+        const sourceLine =
+            Array.isArray(line?.lines) && line.lines.length ? line.lines[0] : line;
+        return !!this._getRelationId(sourceLine?.uom_bag_id);
+    },
+
+    // bulk_entry
+    get showBulkEntryButton() {
+        if (this.props.subline) {
+            return false;
+        }
+        const line = this.props.line || this.line;
+        const isCountInventory = !this.env.model.record &&
+            typeof this.env.model.getQtyDone === "function" &&
+            typeof this.env.model.getQtyDemand === "function";
+        if (!isCountInventory && !this.env.model.record?.bulk_pallet_lot) {
+            return false;
+        }
+        return this._getBulkGroupLines(line).length >= 2;
+    },
+
+    _getBulkGroupLines(line) {
+        if (!line) {
+            return [];
+        }
+        const packageId = this._getRelationId(line.package_id);
+        const productId = this._getRelationId(line.product_id);
+        if (!productId) {
+            return [];
+        }
+        let candidates;
+        if (Array.isArray(line.lines) && line.lines.length) {
+            candidates = line.lines.filter(
+                (l) => this._getRelationId(l.package_id) === packageId
+            );
+        } else {
+            if (!packageId) {
+                return [];
+            }
+            candidates = (this.env.model.pageLines || []).filter(
+                (l) =>
+                    this._getRelationId(l.package_id) === packageId &&
+                    this._getRelationId(l.product_id) === productId
+            );
+        }
+        const distinctLots = new Set(
+            candidates.map((l) => this._getRelationId(l.lot_id) || l.lot_name || false)
+        );
+        if (distinctLots.size < 2) {
+            return [];
+        }
+        console.log("[WMS-SCANNER][moveLine] _getBulkGroupLines:candidates", {
+            packageId,
+            productId,
+            candidates: candidates.map((l) => ({
+                id: l.id,
+                virtual_id: l.virtual_id,
+                lot: this._getRelationId(l.lot_id) || l.lot_name || null,
+                qty_done: l.qty_done,
+                reserved_uom_qty: l.reserved_uom_qty,
+            })),
+        });
+        return candidates;
+    },
+
+    async _getBulkCapacities(groupLines) {
+        const isCountInventory = !this.env.model.record &&
+            typeof this.env.model.getQtyDone === "function";
+        const capacities = groupLines.map((line) => ({
+            line,
+            maxBag: isCountInventory ? 0 : Math.floor(this._computeSingleBagDemand(line)),
+        }));
+
+        // `_computeSingleBagDemand()` sudah mengenal reservasi maupun isi pallet
+        // hasil scan, jadi quant hanya dibaca untuk sisa line yang benar-benar
+        // belum ketahuan kapasitasnya -- mis. line lama yang sudah tersimpan
+        // dari sesi scan sebelumnya, yang isi pallet-nya tidak ada di ingatan
+        // model sesi ini.
+        if (isCountInventory) {
+            const packageId = this._getRelationId(groupLines[0]?.package_id);
+            const productId = this._getRelationId(groupLines[0]?.product_id);
+            if (!packageId || !productId) {
+                return capacities;
+            }
+            try {
+                // Always read original stock. Client line.quantity changes after
+                // first bulk input and must not become next dialog capacity.
+                const quants = await this.env.model.orm.searchRead(
+                    "stock.quant",
+                    [
+                        ["package_id", "=", packageId],
+                        ["product_id", "=", productId],
+                    ],
+                    ["lot_id", "quantity"]
+                );
+                const quantByLot = new Map(
+                    quants.map((q) => [q.lot_id ? q.lot_id[0] : false, q.quantity || 0])
+                );
+                for (const capacity of capacities) {
+                    const lotId = this._getRelationId(capacity.line.lot_id) || false;
+                    const quantity = quantByLot.get(lotId) || 0;
+                    capacity.maxBag = Math.floor(
+                        this._computeBagFromQty(capacity.line, quantity) || quantity
+                    );
+                }
+            } catch (error) {
+                console.error("[bulk_entry] gagal membaca kapasitas Count Inventory:", error);
+            }
+            return capacities;
+        }
+        const missing = capacities.filter((capacity) => !capacity.maxBag);
+        if (!missing.length) {
+            return capacities;
+        }
+        const packageId = this._getRelationId(groupLines[0].package_id);
+        const productId = this._getRelationId(groupLines[0].product_id);
+        if (!packageId || !productId) {
+            return capacities;
+        }
+        try {
+            const quants = await this.env.model.orm.searchRead(
+                "stock.quant",
+                [
+                    ["package_id", "=", packageId],
+                    ["product_id", "=", productId],
+                ],
+                ["lot_id", "quantity"]
+            );
+            const quantByLot = new Map(
+                quants.map((q) => [q.lot_id ? q.lot_id[0] : false, q.quantity])
+            );
+            for (const capacity of missing) {
+                const quantQty = quantByLot.get(this._getRelationId(capacity.line.lot_id) || false);
+                capacity.maxBag = Math.floor(this._computeBagFromQty(capacity.line, quantQty));
+            }
+        } catch (error) {
+            console.error("[bulk_entry] gagal membaca quant untuk kapasitas:", error);
+        }
+        return capacities;
+    },
+
+    // bulk_entry
+    async openBulkEntry(line) {
+        console.log("[WMS-SCANNER][bulkEntry] openBulkEntry:start", {
+            line_id: line && line.id,
+            virtual_id: line && line.virtual_id,
+            product: this._getRelationId(line && line.product_id),
+            package_id: this._getRelationId(line && line.package_id),
+            picking_type_code: this.env.model.record && this.env.model.record.picking_type_code,
+            bulk_pallet_lot: this.env.model.record && this.env.model.record.bulk_pallet_lot,
+        });
+        const groupLines = this._getBulkGroupLines(line);
+        if (groupLines.length < 2) {
+            console.log("[WMS-SCANNER][bulkEntry] openBulkEntry:no-group (need >= 2 sibling lines)", {
+                groupLinesCount: groupLines.length,
+            });
+            return;
+        }
+        const capacities = await this._getBulkCapacities(groupLines);
+        const totalCapacity = capacities.reduce((sum, c) => sum + c.maxBag, 0);
+        console.log(
+            "[bulk_entry] kapasitas ::",
+            JSON.stringify(
+                capacities.map((c) => ({
+                    line_id: c.line.id,
+                    lot: this._getRelationId(c.line.lot_id),
+                    reserved: c.line.reserved_uom_qty,
+                    quantity: c.line.quantity,
+                    maxBag: c.maxBag,
+                }))
+            ),
+            "total:",
+            totalCapacity
+        );
+
+        if (!totalCapacity) {
+            this.env.model.dialogService.add(ConfirmationDialog, {
+                title: _t("Bulk Entry tidak tersedia"),
+                body: _t("Tidak ada quantity yang bisa dibagikan pada pallet ini."),
+                confirmLabel: _t("OK"),
+                confirm: () => {},
+                cancel: () => {},
+            });
+            return;
+        }
+
+        this.env.model.dialogService.add(BulkEntryDialog, {
+            title: this.env.model.record
+                ? _t("Bulk Entry - Isi Total Bag Qty")
+                : _t("Bulk Entry - Isi Total Count Qty"),
+            maxQty: totalCapacity,
+            productName: groupLines[0]?.product_id?.display_name || "",
+            packageName: groupLines[0]?.package_id?.name || "",
+            onConfirm: async (totalBagQty) => {
+                const qty = Math.floor(Number(totalBagQty) || 0);
+                if (qty <= 0) {
+                    return;
+                }
+                let remaining = qty;
+                for (const c of capacities) {
+                    const assign = Math.min(remaining, c.maxBag);
+                    remaining -= assign;
+                    await this._applyBulkBagQty(c.line, assign);
+                }
+                this.env.model.trigger("update");
+                // Persist immediately. Browser back/history navigation can leave
+                // beforeQuit unsignalled, which otherwise loses counted values.
+                await this.env.model.save();
+            },
+        });
+    },
+
+    async _applyBulkBagQty(line, bagQty) {
+        console.log("[WMS-SCANNER][moveLine] _applyBulkBagQty:start", {
+            id: line && line.id,
+            virtual_id: line && line.virtual_id,
+            product: this._getRelationId(line && line.product_id),
+            lot: this._getRelationId(line && line.lot_id),
+            package_id: this._getRelationId(line && line.package_id),
+            qty_done_before: line && line.qty_done,
+            bagQty,
+        });
+        line.bag_qty = bagQty;
+        const bagUomId = this._getRelationId(line.uom_bag_id);
+        const bagUom = bagUomId && this.env.model.cache.getRecord("uom.uom", bagUomId);
+        const isCountInventory = !this.env.model.record &&
+            typeof this.env.model.getQtyDone === "function";
+        const newQty = isCountInventory && bagUom && bagUom.factor
+            ? bagQty * (bagUom.factor / 1000)
+            : bagQty;
+        if (bagUom && bagUom.factor) {
+            line.qty_done = newQty;
+            line.quantity = newQty;
+        }
+        if (isCountInventory) {
+            line.inventory_quantity = newQty;
+            line.inventory_quantity_set = true;
+            this.env.model._markLineAsDirty(line);
+            return;
+        }
+        if (line.id) {
+            const vals = { bag_qty: bagQty };
+            if (!bagQty) {
+                vals.qty_done = 0;
+            }
+            await this.env.model.orm.write("stock.move.line", [line.id], vals);
+        } else {
+            this.env.model._markLineAsDirty(line);
+        }
+    },
+});

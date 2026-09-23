@@ -1,0 +1,57 @@
+<?xml version="1.0" ?>
+<odoo>
+    <data noupdate="1">
+        <record id="ip_sap_rfc" model="ir.config_parameter">
+            <field name="key">ip_sap_rfc</field>
+            <field name="value">https://saprfc-dev.cpp.co.id</field>
+        </record>
+        <record id="prod_in_move_type" model="ir.config_parameter">
+            <field name="key">prod_in_move_type</field>
+            <field name="value">888</field>
+        </record>
+        <record id="x_i_api_key" model="ir.config_parameter">
+            <field name="key">x_i_api_key</field>
+            <field name="value"></field>
+        </record>
+        <record id="query_master_data_sap" model="ir.config_parameter">
+            <field name="key">query_master_data_sap</field>
+            <field name="value">SELECT a.laeda,f.vrkme,c.maktx,a.meins,a.mtart,a.matkl,d.mtbez,a.ntgew,a.matnr,b.lvorm,b.werks,b.xchpf,e.meinh,e.umrez,e.umren,d.spras,a.mhdhb,a.iprkz,g.lgort FROM mara a INNER JOIN marc b ON b.mandt=a.mandt AND b.matnr=a.matnr INNER JOIN makt c ON c.mandt=a.mandt AND c.matnr=a.matnr AND c.spras='E' INNER JOIN t134t d ON d.mandt=a.mandt AND d.mtart=a.mtart AND d.spras='E' LEFT JOIN (SELECT DISTINCT mandt,matnr,vrkme FROM mvke WHERE vrkme !=' ') f ON f.mandt=a.mandt AND f.matnr=a.matnr LEFT JOIN marm e ON e.mandt=a.mandt AND e.matnr=a.matnr AND e.meinh=f.vrkme LEFT JOIN mard g ON g.mandt=a.mandt AND g.matnr=a.matnr AND g.werks=b.werks AND g.lvorm=' ' WHERE a.mtart='FERT'</field>
+        </record>
+        <record id="query_stock_sap" model="ir.config_parameter">
+            <field name="key">query_stock_sap</field>
+            <field name="value">select a.matnr, b.maktx, a.werks, a.lgort, c.meins, a.labst, a.insme, a.speme from mard a join mara c on a.matnr = c.matnr left join makt b on a.matnr = b.matnr and b.spras = 'E' where a.lgort = 'FINI'</field>
+        </record>
+        <record id="query_product_packaging_sap" model="ir.config_parameter">
+            <field name="key">query_product_packaging_sap</field>
+            <field name="value">select a.fnsh_good, a.PCKLBL,a.BAG_UOM, a.pack_desc,a.plant from ZPPAFDPACK a</field>
+        </record>
+        <record id="query_production_line_sap" model="ir.config_parameter">
+            <field name="key">query_production_line_sap</field>
+            <field name="value">select a.zkey1, a.zkey2, a.zkey3 from zcpro_trx a where a.group_id = 'ZPP_FEED_LINE'</field>
+        </record>
+        <record id="query_storage_location_sap" model="ir.config_parameter">
+            <field name="key">query_storage_location_sap</field>
+            <field name="value">select a.lgort, a.werks, a.lgobe from t001l a</field>
+        </record>
+        <record id="sales_retur_barcode_sap" model="ir.config_parameter">
+            <field name="key">sales_retur_barcode_sap</field>
+            <field name="value">sales_retur_barcode</field>
+        </record>
+        <record id="query_sales_return_sap" model="ir.config_parameter">
+            <field name="key">query_sales_return_sap</field>
+            <field name="value">select a.werks, b.vbeln, a.mjahr, a.arrdate, a.lgort, a.trucknr, b.kunnr, c.posnr, c.matnr, a.doqty, a.vrkme, d.umrez, d.umren, a.bktxt from zmm_ts_ret_bgh a left join zmm_ts_ret_bgd b on a.werks = b.werks AND a.seqnr = b.seqnr AND a.trucknr = b.trucknr AND a.arrdate = b.arrdate LEFT JOIN vbap c ON b.vbeln = c.vbeln LEFT JOIN marm d ON c.matnr = d.matnr AND c.vrkme = d.meinh where a.mblnr != ' '</field>
+        </record>
+        <record id="mattomat_move_type_sap" model="ir.config_parameter">
+            <field name="key">mattomat_move_type_sap</field>
+            <field name="value">309</field>
+        </record>
+        <record id="upload_stock" model="ir.config_parameter">
+            <field name="key">upload_stock</field>
+            <field name="value">False</field>
+        </record>
+        <record id="company_upload_stock" model="ir.config_parameter">
+            <field name="key">company_upload_stock</field>
+            <field name="value">1481</field>
+        </record>
+    </data>
+</odoo>

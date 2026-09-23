@@ -1,0 +1,220 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <!-- Search View -->
+    <record model="ir.ui.view" id="mat_to_mat_search_views">
+        <field name="name">mat.to.mat.search</field>
+        <field name="model">mat.to.mat</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="state"/>
+                <field name="product_id"/>
+                <field name="company_id"/>
+                <field name="location_id"/>
+                <field name="warehouse_id"/>
+                <group>
+                    <filter name="gr_state" string="State" context="{'group_by':'state'}"/>
+                    <filter name="gr_product" string="Product" context="{'group_by':'product_id'}"/>
+                    <filter name="gr_date_done" string="Date Done" context="{'group_by':'date_done'}"/>
+                    <filter name="gr_location" string="Location" context="{'group_by':'location_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="mat_to_mat_view_list" model="ir.ui.view">
+        <field name="name">mat.to.mat.view.list</field>
+        <field name="model">mat.to.mat</field>
+        <field name="arch" type="xml">
+            <list string="Mat To Mat">
+                <field name="name"/>
+                <field name="product_id"/>
+                <field name="product_dest_id"/>
+                <field name="location_id"/>
+                <field name="state" widget="badge" decoration-danger="state == 'cancel'" decoration-warning="state == 'ready'" decoration-success="state == 'done'"/>
+                <field name="company_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="mat_to_mat_view_form" model="ir.ui.view">
+        <field name="name">mat.to.mat.view.form</field>
+        <field name="model">mat.to.mat</field>
+        <field name="arch" type="xml">
+            <form string="Mat To Mat">
+                <header>
+					<button name="action_check_availibility" string="Check Availability" type="object" class="btn btn-oe_highlight" invisible="state != 'draft'"/>
+					<button name="action_mat_ready" string="Confirm" type="object" confirm="Pastikan semua Data sudah sesuai" class="oe_highlight" invisible="state != 'draft'"/>
+					<button name="action_mat_done" string="Done" type="object" confirm="Pastikan semua Data sudah sesuai" class="btn oe_highlight" invisible="state != 'ready'"/>
+					<button name="action_mat_cancel" string="Cancel" type="object" confirm="Pastikan semua Data sudah sesuai" class="btn-danger" invisible="state != 'ready'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_stock_moves" type="object" class="oe_stat_button" icon="fa-arrows-alt">
+                            <field name="move_count" widget="statinfo" string="Stock Moves"/>
+                        </button>
+                        <button name="action_view_stock_move_lines" type="object" class="oe_stat_button" icon="fa-list">
+                            <field name="move_line_count" widget="statinfo" string="Move Lines"/>
+                        </button>
+                        <button name="action_view_stock_quants" type="object" class="oe_stat_button" icon="fa-cubes">
+                            <field name="quant_count" widget="statinfo" string="Stock Quants"/>
+                        </button>
+                    </div>
+                    <label for="name" class="oe_edit_only"/>
+                    <h1>
+                        <field name="name" force_save="1" readonly="1"/>
+                    </h1>
+                    <group>
+                        <group name="mattomat_left">
+                            <field name="company_id" force_save="1" readonly="1" options="{'no_open': True, 'no_create': True}" required="1"/>
+                            <field name="warehouse_id" readonly="state != 'draft'" options="{'no_open': True, 'no_create': True}" domain="[('company_id', '=', company_id)]" required="1"/>
+                            <field name="product_id" readonly="state != 'draft'" options="{'no_open': True, 'no_create': True}" domain="[('company_id', '=', company_id),('id', '!=', product_dest_id)]" required="1"/>
+                            <field name="location_id" readonly="state != 'draft'" options="{'no_open': True, 'no_create': True}" domain="[('company_id', '=', company_id)]"/>
+                            <field name="notes" placeholder="e.g Packages sedang rusak" readonly="state != 'draft'"/>
+                            <field name="select_all" readonly="state != 'draft'" invisible="not is_checked"/>
+                        </group>
+                        <group name="mattomat_right">
+                            <field name="is_checked" readonly="1" invisible="1"/>
+                            <field name="date_done" readonly="1"/>
+                            <field name="warehouse_dest_id" required="1" readonly="state != 'draft'" options="{'no_open': True, 'no_create': True}" domain="[('company_id', '=', company_id)]"/>
+                            <field name="product_dest_id" readonly="state != 'draft'" options="{'no_open': True, 'no_create': True}" domain="[('company_id', '=', company_id),('id', '!=', product_id)]" required="1"/>
+                            <field name="location_dest_id" readonly="state != 'draft'" options="{'no_open': True, 'no_create': True}" domain="[('company_id', '=', company_id),('id', '!=', location_id)]"/>
+                            <field name="move_type" readonly="1"/>
+                            <field name="picking_id" readonly="1" invisible="not picking_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page name="mat_to_mat_source" string="Source">
+                            <field name="mat_source_ids" mode="list,kanban">
+								<list create="0" delete="0" editable="bottom">
+                                    <field name="is_selected" readonly="parent.state != 'draft'" widget="boolean_toggle"/>
+                                    <field name="mat_to_mat_id" column_invisible="1" options="{'no_open': True, 'no_create': True}" readonly="1"/>
+                                    <field name="quant_id" readonly="1"/>
+                                    <field name="product_id" options="{'no_open': True, 'no_create': True}" readonly="1"/>
+                                    <field name="package_id" options="{'no_open': True, 'no_create': True}" readonly="1"/>
+                                    <field name="location_id" options="{'no_open': True, 'no_create': True}" readonly="1"/>
+                                    <field name="lot_id" options="{'no_open': True, 'no_create': True}" readonly="1"/>
+                                    <field name="stock_type"/>
+                                    <field name="quantity" sum="Total" readonly="1"/>
+                                    <field name="uom_id" options="{'no_open': True, 'no_create': True}" readonly="1"/>
+                                    <field name="pack_qty" sum="Total" readonly="1"/>
+                                    <field name="pack_uom_id" options="{'no_open': True, 'no_create': True}" readonly="1"/>
+								</list>
+								<form create="0" edit="0" delete="0">
+                                    <group>
+                                        <field name="package_id" options="{'no_open': True, 'no_create': True}"/>
+                                        <field name="location_id" options="{'no_open': True, 'no_create': True}"/>
+                                        <field name="lot_id" options="{'no_open': True, 'no_create': True}"/>
+                                        <field name="quantity"/>
+                                        <field name="uom_id" options="{'no_open': True, 'no_create': True}"/>
+                                    </group>
+								</form>
+                                <kanban class="o_kanban_mobile" create="0" edit="0" delete="0" duplicate="0" quick_create="0">
+                                    <templates>
+                                        <t t-name="card">
+                                            <field name="package_id" class="fw-bold" options="{'no_open': True, 'no_create': True}"/>
+                                            <field name="lot_id" options="{'no_open': True, 'no_create': True}"/>
+                                            <div class="d-flex">
+                                                <field name="pack_qty"/>
+                                                <field class="mx-2" name="pack_uom_id" groups="uom.group_uom" options="{'no_open': True, 'no_create': True}"/>
+                                            </div>
+                                        </t>
+                                    </templates>
+                                </kanban>
+							</field>
+						</page>
+                        <page name="mat_to_mat_dest" string="Destination">
+                            <field name="mat_destination_ids" readonly="1" mode="list,kanban">
+								<list create="0" delete="0" edit="0">
+                                    <field name="mat_to_mat_id" column_invisible="1" options="{'no_open': True, 'no_create': True}"/>
+                                    <field name="product_id" options="{'no_open': True, 'no_create': True}"/>
+                                    <field name="package_id" options="{'no_open': True, 'no_create': True}"/>
+                                    <field name="location_id" options="{'no_open': True, 'no_create': True}"/>
+                                    <field name="lot_id" options="{'no_open': True, 'no_create': True}"/>
+                                    <field name="stock_type"/>
+                                    <field name="quantity" sum="Total"/>
+                                    <field name="uom_id" options="{'no_open': True, 'no_create': True}"/>
+                                    <field name="pack_qty" sum="Total Bag"/>
+                                    <field name="pack_uom_id" options="{'no_open': True, 'no_create': True}"/>
+								</list>
+								<form create="0" edit="0" delete="0">
+                                    <group>
+                                        <field name="product_id" options="{'no_open': True, 'no_create': True}"/>
+                                        <field name="package_id" options="{'no_open': True, 'no_create': True}"/>
+                                        <field name="location_id" options="{'no_open': True, 'no_create': True}"/>
+                                        <field name="lot_id" options="{'no_open': True, 'no_create': True}"/>
+                                        <field name="quantity"/>
+                                        <field name="uom_id" options="{'no_open': True, 'no_create': True}"/>
+                                    </group>
+								</form>
+                                <kanban class="o_kanban_mobile" create="0" edit="0" delete="0" duplicate="0" quick_create="0">
+                                    <templates>
+                                        <t t-name="card">
+                                            <field name="package_id" class="fw-bold" options="{'no_open': True, 'no_create': True}"/>
+                                            <field name="lot_id" options="{'no_open': True, 'no_create': True}"/>
+                                            <div class="d-flex">
+                                                <field name="pack_qty"/>
+                                                <field class="mx-2" name="pack_uom_id" groups="uom.group_uom" options="{'no_open': True, 'no_create': True}"/>
+                                            </div>
+                                        </t>
+                                    </templates>
+                                </kanban>
+							</field>
+						</page>
+					</notebook>
+                </sheet>
+                <chatter reload_on_follower="True"/>
+            </form>
+        </field>
+    </record>
+
+    <record id="mat_to_mat_view_kanban" model="ir.ui.view">
+        <field name="name">mat.to.mat.view.kanban</field>
+        <field name="model">mat.to.mat</field>
+        <field name="arch" type="xml">
+            <kanban quick_create="0" quick_edit="0" records_draggable="0" class="o_kanban_mobile">
+                <field name="name"/>
+                <field name="product_id"/>
+                <field name="product_dest_id"/>
+                <field name="location_id"/>
+                <field name="state" decoration-danger="state == 'cancel'" decoration-warning="state == 'ready'" decoration-success="state == 'done'"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_card oe_kanban_global_click">
+                            <div class="row mb-2">
+                                <div class="col-8">
+                                    <strong><field name="name"/></strong>
+                                </div>
+                                <div class="col-4 text-right">
+                                    <field name="state" widget="badge" decoration-danger="state == 'cancel'" decoration-warning="state == 'ready'" decoration-success="state == 'done'"/>
+                                </div>
+                            </div>
+                            <div class="row mb-1" t-if="record.product_id.raw_value">
+                                <div class="col-12 text-muted">
+                                    <field name="product_id"/>
+                                </div>
+                            </div>
+                            <div class="row mb-1" t-if="record.product_dest_id.raw_value">
+                                <div class="col-12 text-muted">
+                                    <field name="product_dest_id"/>
+                                </div>
+                            </div>
+                            <div class="row mb-1" t-if="record.location_id.raw_value">
+                                <div class="col-12 text-muted">
+                                    <field name="location_id"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="mat_to_mat_action" model="ir.actions.act_window">
+        <field name="name">Mat To Mat</field>
+        <field name="res_model">mat.to.mat</field>
+        <field name="view_mode">kanban,list,form</field>
+    </record>
+</odoo>

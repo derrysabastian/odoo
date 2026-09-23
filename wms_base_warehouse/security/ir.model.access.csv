@@ -1,0 +1,17 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_user_unpack_stock_package_wizard,user_unpack_stock_package_wizard,model_unpack_stock_package_wizard,base.group_user,1,1,1,1
+access_user_unpack_stock_package_line,user_unpack_stock_package_line,model_unpack_stock_package_line,base.group_user,1,1,1,1
+access_user_production_line,user_production_line,model_production_line,base.group_user,1,1,1,1
+access_user_production_shift,user_production_shift,model_production_shift,base.group_user,1,1,1,1
+access_user_production_code,user_production_code,model_production_code,base.group_user,1,1,1,1
+access_user_production_group,user_production_group,model_production_group,base.group_user,1,1,1,1
+access_user_stock_sap,user_stock_sap,model_stock_sap,base.group_user,1,1,1,1
+access_user_product_packaging_sap,user_product_packaging_sap,model_product_packaging_sap,base.group_user,1,1,1,1
+access_user_picking_packaging_line,user_picking_packaging_line,model_picking_packaging_line,base.group_user,1,1,1,1
+access_user_storage_location,user_storage_location,model_storage_location,base.group_user,1,1,1,1
+access_user_stock_lot_aft,user_stock_lot_aft,model_stock_lot_aft,base.group_user,1,1,1,1
+access_user_product_wip,user_product_wip,model_product_wip,base.group_user,1,1,1,1
+access_user_stock_warehouse_category,access_user_stock_warehouse_category,model_stock_warehouse_category,base.group_user,1,1,1,1
+access_user_mat_to_mat,access_user_mat_to_mat,model_mat_to_mat,base.group_user,1,1,1,1
+access_user_mat_to_mat_source,access_user_mat_to_mat_source,model_mat_to_mat_source,base.group_user,1,1,1,1
+access_user_mat_to_mat_destination,access_user_mat_to_mat_destination,model_mat_to_mat_destination,base.group_user,1,1,1,1
